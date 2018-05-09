@@ -1,1 +1,7 @@
-*trackingfront*.zip
+
+/translations/*
+!/translations/index.php
+
+/config*.xml
+
+trackingfront-*.zip
