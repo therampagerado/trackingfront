@@ -41,6 +41,7 @@ class TrackingFront extends Module
 
         $this->displayName = $this->l('Tracking - Front Office');
         $this->ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
+        $this->tb_min_version = '1.0.0';
         $this->tb_versions_compliancy = '>= 1.0.0';
         $this->description = $this->l('Enables your affiliates to access their own statistics. See Stats/Referrers.');
     }
