@@ -48,6 +48,8 @@ class TrackingFront extends Module
 
     /**
      * @return void
+     * @throws PrestaShopException
+     * @throws Adapter_Exception
      */
     public function postProcess()
     {
@@ -93,20 +95,22 @@ class TrackingFront extends Module
             } elseif (!Validate::isPasswd($passwd, 1)) {
                 $errors[] = $this->l('invalid password');
             } else {
-                $passwd = Tools::encrypt($passwd);
-                $result = Db::getInstance()->getRow(
-                    '
-				SELECT `id_referrer`
-				FROM `'._DB_PREFIX_.'referrer`
-				WHERE `name` = \''.pSQL($login).'\' AND `passwd` = \''.pSQL($passwd).'\''
-                );
-                if (!isset($result['id_referrer']) || !($trackingId = (int) $result['id_referrer'])) {
-                    $errors[] = $this->l('authentication failed');
-                } else {
-                    $this->context->cookie->tracking_id = $trackingId;
-                    $this->context->cookie->tracking_passwd = $passwd;
-                    Tools::redirect(Tools::getShopDomain(true, false).__PS_BASE_URI__.'modules/trackingfront/stats.php');
+                $sql = (new DbQuery())
+                    ->select('id_referrer, passwd')
+                    ->from('referrer')
+                    ->where('name = "' . pSQL($login) . '"');
+                $result = Db::getInstance()->getRow($sql);
+
+                if (isset($result['id_referrer']) && isset($result['passwd'])) {
+                    $trackingId = (int) $result['id_referrer'];
+                    if ($trackingId) {
+                        $hashedPassword = $result['passwd'];
+                        if (password_verify($passwd, $hashedPassword)) {
+                            die($this->authenticated($trackingId, $result['passwd']));
+                        }
+                    }
                 }
+                $errors[] = $this->l('authentication failed');
             }
             $this->smarty->assign('errors', $errors);
         }
@@ -248,5 +252,19 @@ class TrackingFront extends Module
         );
 
         return $this->display(__FILE__, 'views/templates/front/account.tpl');
+    }
+
+    /**
+     * Method is called when user is successfully authenticated
+     *
+     * @param int $id - referrer id
+     * @param string $password - referrer password, hashed
+     * @throws PrestaShopException
+     */
+    public function authenticated($id, $password)
+    {
+        $this->context->cookie->tracking_id = $id;
+        $this->context->cookie->tracking_passwd = $password;
+        Tools::redirect(Tools::getShopDomain(true, false) . __PS_BASE_URI__ . 'modules/trackingfront/stats.php');
     }
 }
